@@ -1,0 +1,11 @@
+feature,mean_abs_shap
+btc_return_1d,0.1554872
+btc_rsi_14,0.12441857
+gold_return_5d,0.12397022
+fear_greed_index,0.11525403
+active_addresses_change_7d,0.10276472
+funding_rate_mean_7d,0.09880923
+vix_zscore_21d,0.07376212
+spx_return_1d,0.058239847
+mvrv_level,0.057447985
+vix_change_1d,0.050404128

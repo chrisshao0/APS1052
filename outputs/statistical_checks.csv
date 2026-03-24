@@ -1,0 +1,10 @@
+metric,value
+white_reality_check_p_value,0.136
+permutation_observed_sharpe,1.1184604908771414
+permutation_p_value,0.066
+bootstrap_sharpe_lower,-0.8869990256234145
+bootstrap_sharpe_upper,3.1143082560578517
+bootstrap_cagr_lower,-0.3205997968709607
+bootstrap_cagr_upper,2.0418706493473633
+bootstrap_profit_factor_lower,0.8417248439244316
+bootstrap_profit_factor_upper,1.833557154888859
