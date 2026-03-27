@@ -72,7 +72,8 @@ def scores_to_positions(
     upper_threshold: float,
     lower_threshold: float,
 ) -> np.ndarray:
-    positions = np.zeros(len(scores), dtype=float)
+    positions = np.where(scores > upper_threshold, 1,
+                np.where(scores < lower_threshold, -1, 0))
     positions[scores >= upper_threshold] = 1.0
     positions[scores <= lower_threshold] = -1.0
     return positions

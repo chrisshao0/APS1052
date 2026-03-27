@@ -11,13 +11,13 @@ class Settings:
     cross_validation_splits: int = 5
     random_search_iterations: int = 12
 
-    upper_signal_threshold: float = 0.55
-    lower_signal_threshold: float = 0.45
+    upper_signal_threshold: float = 0.6
+    lower_signal_threshold: float = 0.4
 
     bootstrap_repetitions: int = 500
     permutation_repetitions: int = 500
     bootstrap_block_length: int = 10
-    shap_sample_size: int = 250
+    shap_sample_size: int = 50
 
     project_root: Path = field(default_factory=lambda: Path(__file__).resolve().parent.parent)
 

@@ -42,8 +42,10 @@ def build_feature_dataset(master_data: pd.DataFrame, settings: Settings):
 
     close = frame["btc_close"]
     one_day_return = close.pct_change(fill_method=None)
-
-    frame["target_return"] = one_day_return.shift(-1)
+    target_horizon = 1
+    multi_day_return = close.pct_change(target_horizon, fill_method=None)
+    
+    frame["target_return"] = multi_day_return.shift(-target_horizon)
     frame["target"] = (frame["target_return"] > 0).astype(int)
 
     feature_names: list[str] = []
@@ -147,8 +149,14 @@ def build_feature_dataset(master_data: pd.DataFrame, settings: Settings):
 
     keep_columns = ["date", "btc_close", "target", "target_return"] + feature_names
     dataset = frame[keep_columns].copy()
+    
+    for col in feature_names:
+        dataset[col] = dataset[col].shift(1)
+        
     dataset = dataset.replace([np.inf, -np.inf], np.nan)
     dataset = dataset.dropna().reset_index(drop=True)
-
     feature_catalog = pd.DataFrame(feature_rows).drop_duplicates("feature").reset_index(drop=True)
+    dataset = dataset.drop(columns=[col for col in dataset.columns if dataset[col].std() == 0], errors="ignore")
+    # 🔥 FIX: keep feature_names consistent
+    feature_names = [col for col in feature_names if col in dataset.columns]
     return dataset, feature_names, feature_catalog
