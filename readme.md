@@ -66,6 +66,10 @@ source .venv/bin/activate
 python3 -m pip install --upgrade pip
 python3 -m pip install -r requirements.txt
 ```
+Optional notebook tooling:
+```bash
+python3 -m pip install jupyter ipykernel
+```
 
 ### Option B: conda
 ```bash
@@ -73,8 +77,15 @@ cd APS1052
 conda env create -f environment.yml
 conda activate aps1052-option5
 ```
+Optional notebook tooling:
+```bash
+conda install -c conda-forge jupyter ipykernel
+```
 
 ## How to Run
+Primary entrypoint (report/native execution): `notebooks/APS1052_option5_pipeline.ipynb`  
+Secondary entrypoint (script): `main.py`
+
 ### Standard run
 ```bash
 cd APS1052
@@ -95,6 +106,13 @@ python3 main.py --skip-shap
 Open:
 - `notebooks/APS1052_option5_pipeline.ipynb`
 Then set `RUN_PIPELINE=True` in the notebook and run all cells for a full native end-to-end execution.
+
+### TA/Prof quick verification (recommended)
+```bash
+cd APS1052
+python3 main.py --offline --skip-shap
+```
+This regenerates all required tables/figures without network downloads.
 
 ## Expected Outputs
 Main CSV outputs in `outputs/tables/`:

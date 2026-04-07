@@ -5,6 +5,7 @@ Audit date: 2026-04-07
 Repository: `APS1052`  
 Audited areas:
 - pipeline flow (`main.py`)
+- notebook-native execution flow (`notebooks/APS1052_option5_pipeline.ipynb`)
 - configuration and reproducibility (`src/config.py`, env files)
 - data loading robustness (`src/data_pipeline.py`)
 - feature creation (`src/feature_engineering.py`)
@@ -26,6 +27,8 @@ Audited areas:
 | Medium | Risk-free consistency | Sharpe calculations differed between evaluation modules. | Centralized risk-free handling via config and routed it through CV/test and final finance outputs. | Fixed |
 | Medium | Feature timing policy | A universal lag can discard recent price information. | Replaced global lag with group-wise lag policy (price 0, external 0, on-chain 1). | Fixed |
 | Medium | Statistical interval robustness | Bootstrap quantiles could return NaN when `inf` values appeared in metric samples. | Cleaned `inf/-inf` before confidence interval quantile computation. | Fixed |
+| Low | Documentation/run clarity | Notebook was previously treated as a wrapper and docs had ambiguous run guidance. | Upgraded notebook to native end-to-end execution path and clarified README run paths (primary notebook, secondary script). | Fixed |
+| Low | Path portability | Machine-specific absolute paths in docs/notebook could break portability. | Replaced absolute paths with APS1052-root-relative references. | Fixed |
 | Low | Maintainability | Limited docstrings in key modules/functions. | Added docstrings to core configuration and evaluation/data/model functions. | Fixed |
 | Low | Dead code | `test_config.py` had no meaningful role in final pipeline. | Removed obsolete helper script. | Fixed |
 
@@ -37,8 +40,11 @@ Audited areas:
 
 ## Validation Performed
 1. Full pipeline compile check: `python3 -m compileall main.py src`
-2. Full run after refactor: `python3 main.py`
-3. Verified generated artifacts:
+2. Offline full run after refactor: `python3 main.py --offline --skip-shap`
+3. Notebook JSON/code integrity checks:
+   - `python3 -m json.tool notebooks/APS1052_option5_pipeline.ipynb`
+   - compiled all notebook code cells successfully
+4. Verified generated artifacts:
    - `outputs/tables/cv_model_summary.csv`
    - `outputs/tables/test_model_summary.csv`
    - `outputs/tables/model_selection_summary.csv`
