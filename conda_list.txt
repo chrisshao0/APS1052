@@ -1,0 +1,19 @@
+# Reproducible environment snapshot for APS1052 Option 5 pipeline.
+# This file mirrors the active dependency set needed to run main.py.
+python==3.9
+pip
+numpy==1.23.5
+pandas==2.2.2
+matplotlib==3.9.4
+requests==2.32.3
+yfinance==1.2.0
+scikit-learn==1.6.1
+xgboost==2.1.4
+scipy==1.13.1
+shap==0.49.1
+numba==0.60.0
+llvmlite==0.43.0
+slicer==0.0.8
+joblib==1.5.3
+threadpoolctl==3.6.0
+tqdm==4.67.3

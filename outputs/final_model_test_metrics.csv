@@ -1,0 +1,2 @@
+model,signal_upper_threshold,signal_lower_threshold,accuracy,balanced_accuracy,f1,roc_auc,sharpe,cagr,profit_factor,max_drawdown,average_absolute_position,trade_count,test_rank,is_final_model
+logistic_regression,0.5283145929795389,0.4800524757868034,0.49789915966386555,0.4987993290368147,0.5285996055226825,0.5079014743533151,0.5800909274178442,0.15148321883074845,1.1849929489260411,-0.23990578865486045,0.33403361344537813,159,3,True

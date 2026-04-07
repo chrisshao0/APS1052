@@ -37,12 +37,13 @@ def first_existing_column(frame: pd.DataFrame, candidates: list[str]) -> str | N
 
 
 def build_feature_dataset(master_data: pd.DataFrame, settings: Settings):
+    """Create supervised learning features and next-period target labels."""
     frame = master_data.copy()
     frame = frame.sort_values("date").reset_index(drop=True)
 
     close = frame["btc_close"]
     one_day_return = close.pct_change(fill_method=None)
-    target_horizon = 1
+    target_horizon = settings.target_horizon_days
     multi_day_return = close.pct_change(target_horizon, fill_method=None)
     
     frame["target_return"] = multi_day_return.shift(-target_horizon)
@@ -149,14 +150,23 @@ def build_feature_dataset(master_data: pd.DataFrame, settings: Settings):
 
     keep_columns = ["date", "btc_close", "target", "target_return"] + feature_names
     dataset = frame[keep_columns].copy()
-    
+
+    feature_group_map = {row["feature"]: row["group"] for row in feature_rows}
+    lag_by_group = {
+        "price": settings.price_feature_lag_days,
+        "external": settings.external_feature_lag_days,
+        "on_chain": settings.onchain_feature_lag_days,
+    }
+
     for col in feature_names:
-        dataset[col] = dataset[col].shift(1)
+        group = feature_group_map.get(col, "external")
+        lag_days = lag_by_group.get(group, settings.onchain_feature_lag_days)
+        dataset[col] = dataset[col].shift(lag_days)
         
     dataset = dataset.replace([np.inf, -np.inf], np.nan)
     dataset = dataset.dropna().reset_index(drop=True)
     feature_catalog = pd.DataFrame(feature_rows).drop_duplicates("feature").reset_index(drop=True)
     dataset = dataset.drop(columns=[col for col in dataset.columns if dataset[col].std() == 0], errors="ignore")
-    # 🔥 FIX: keep feature_names consistent
+    # Keep feature_names aligned with dropped constant columns.
     feature_names = [col for col in feature_names if col in dataset.columns]
     return dataset, feature_names, feature_catalog

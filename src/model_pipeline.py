@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 from sklearn.base import clone
 from sklearn.ensemble import RandomForestClassifier
@@ -14,10 +13,11 @@ from sklearn.svm import SVC
 from xgboost import XGBClassifier
 
 from src.config import Settings
-from src.evaluation import evaluate_predictions, get_probability_like_scores
+from src.evaluation import choose_signal_thresholds, evaluate_predictions, get_probability_like_scores
 
 
 def build_candidate_models(settings: Settings):
+    """Define candidate model pipelines and search spaces."""
     seed = settings.random_state
 
     models = {
@@ -127,6 +127,11 @@ def fit_candidate_models(
     train_future_returns: pd.Series,
     settings: Settings,
 ):
+    """
+    Tune candidate models with time-series CV and return ranked CV summaries.
+
+    Final model selection is intentionally based on CV ranking only.
+    """
     splitter = TimeSeriesSplit(n_splits=settings.cross_validation_splits)
     candidate_models = build_candidate_models(settings)
 
@@ -164,13 +169,24 @@ def fit_candidate_models(
             print(f"  fold {fold_number} done")
 
         valid_rows = walk_forward_scores.notna()
+        valid_scores = walk_forward_scores.loc[valid_rows].to_numpy()
+        upper_threshold, lower_threshold = choose_signal_thresholds(
+            scores=valid_scores,
+            threshold_policy=settings.threshold_policy,
+            fixed_upper_threshold=settings.upper_signal_threshold,
+            fixed_lower_threshold=settings.lower_signal_threshold,
+            quantile_upper=settings.signal_quantile_upper,
+            quantile_lower=settings.signal_quantile_lower,
+            minimum_threshold_gap=settings.minimum_threshold_gap,
+        )
 
         metrics, strategy_returns, positions = evaluate_predictions(
             truth=train_target.loc[valid_rows],
-            scores=walk_forward_scores.loc[valid_rows].to_numpy(),
+            scores=valid_scores,
             future_returns=train_future_returns.loc[valid_rows],
-            upper_threshold=settings.upper_signal_threshold,
-            lower_threshold=settings.lower_signal_threshold,
+            upper_threshold=upper_threshold,
+            lower_threshold=lower_threshold,
+            risk_free_rate_annual=settings.risk_free_rate_annual,
         )
 
         all_results[model_name] = {
@@ -181,6 +197,10 @@ def fit_candidate_models(
             "walk_forward_strategy_returns": strategy_returns,
             "walk_forward_positions": positions,
             "walk_forward_metrics": metrics,
+            "signal_thresholds": {
+                "upper": upper_threshold,
+                "lower": lower_threshold,
+            },
         }
 
         summary_rows.append(
@@ -188,14 +208,30 @@ def fit_candidate_models(
                 "model": model_name,
                 "search_best_roc_auc": search.best_score_,
                 **metrics,
+                "signal_upper_threshold": upper_threshold,
+                "signal_lower_threshold": lower_threshold,
                 "best_parameters": str(search.best_params_),
             }
         )
 
-    summary = pd.DataFrame(summary_rows).sort_values(
-        by=["sharpe", "profit_factor", "roc_auc"],
-        ascending=False,
-    ).reset_index(drop=True)
+    summary = pd.DataFrame(summary_rows)
+    summary["selection_eligible"] = (
+        (summary["trade_count"] >= settings.minimum_cv_trade_count)
+        & (summary["average_absolute_position"] >= settings.minimum_cv_average_absolute_position)
+    )
+
+    if summary["selection_eligible"].any():
+        summary = summary.sort_values(
+            by=["selection_eligible", "sharpe", "profit_factor", "roc_auc"],
+            ascending=[False, False, False, False],
+        ).reset_index(drop=True)
+    else:
+        summary = summary.sort_values(
+            by=["sharpe", "profit_factor", "roc_auc"],
+            ascending=False,
+        ).reset_index(drop=True)
+
+    summary["cv_rank"] = range(1, len(summary) + 1)
 
     return all_results, summary
 
