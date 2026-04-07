@@ -114,10 +114,13 @@ def build_train_test_split(dataset: pd.DataFrame, test_size: float) -> tuple[pd.
 
 
 def remove_deprecated_outputs(settings: Settings) -> None:
+    legacy_tables_dir = settings.outputs_root_dir
+
     for file_name in DEPRECATED_OUTPUT_FILES:
-        file_path = settings.output_dir / file_name
-        if file_path.exists():
-            file_path.unlink()
+        for base_dir in [legacy_tables_dir, settings.output_dir]:
+            file_path = base_dir / file_name
+            if file_path.exists():
+                file_path.unlink()
 
     for file_name in DEPRECATED_FIGURE_FILES:
         file_path = settings.figure_dir / file_name

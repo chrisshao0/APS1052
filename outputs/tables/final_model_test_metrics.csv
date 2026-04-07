@@ -1,0 +1,2 @@
+model,signal_upper_threshold,signal_lower_threshold,accuracy,balanced_accuracy,f1,roc_auc,sharpe,cagr,profit_factor,max_drawdown,average_absolute_position,trade_count,test_rank,is_final_model
+random_forest,0.5753767411679054,0.4499228500667639,0.49789915966386555,0.49773991348106295,0.48822269807280516,0.5101439039463229,0.6487990685493945,0.17665752980372873,1.2194068715334043,-0.27990013209206455,0.3067226890756303,146,3,True

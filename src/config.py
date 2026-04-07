@@ -56,18 +56,23 @@ class Settings:
         return self.project_root / "data" / "processed"
 
     @property
-    def output_dir(self) -> Path:
+    def outputs_root_dir(self) -> Path:
         return self.project_root / "outputs"
 
     @property
+    def output_dir(self) -> Path:
+        return self.outputs_root_dir / "tables"
+
+    @property
     def figure_dir(self) -> Path:
-        return self.output_dir / "figures"
+        return self.outputs_root_dir / "figures"
 
     def make_directories(self) -> None:
         """Create all project directories used by the pipeline."""
         for folder in [
             self.data_raw_dir,
             self.data_processed_dir,
+            self.outputs_root_dir,
             self.output_dir,
             self.figure_dir,
         ]:

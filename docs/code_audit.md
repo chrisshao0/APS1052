@@ -15,7 +15,7 @@ Audited areas:
 ## Findings and Fixes
 | Severity | Area | Finding | Action Taken | Status |
 |---|---|---|---|---|
-| High | Model selection/reporting | Final model selection and test ranking were easy to confuse in prior outputs (`cross_validation_summary.csv` vs `test_summary.csv`), and low-activity models could be selected. | Enforced explicit CV-only policy with activity eligibility filter and added `outputs/model_selection_summary.csv`, `is_final_model` flag, and `final_model_test_metrics.csv`. | Fixed |
+| High | Model selection/reporting | Final model selection and test ranking were easy to confuse in prior outputs (`cross_validation_summary.csv` vs `test_summary.csv`), and low-activity models could be selected. | Enforced explicit CV-only policy with activity eligibility filter and added `outputs/tables/model_selection_summary.csv`, `is_final_model` flag, and `final_model_test_metrics.csv`. | Fixed |
 | High | Reproducibility | Dependencies were unpinned; environment drift likely across machines. | Pinned `requirements.txt`; added `environment.yml`; added `conda_list.txt` snapshot. | Fixed |
 | High | Repo hygiene | Tracked cache/OS artifacts (`.DS_Store`, `__pycache__`) polluted repo. | Added `.gitignore`; removed tracked cache artifacts. | Fixed |
 | Medium | Runtime robustness | Pipeline hard-failed if SHAP unavailable. | Made SHAP export optional and skippable (`--skip-shap`), with graceful fallback message. | Fixed |
@@ -33,14 +33,14 @@ Audited areas:
 1. External APIs can change schema/availability (Yahoo, Binance, Fear & Greed).
 2. White reality and permutation p-values vary with date range and signal thresholds.
 3. Statistical significance remains modest in many runs; this is a modeling/data issue, not a code crash issue.
-4. Notebook and slide packaging are intentionally not addressed in this code audit.
+4. Slide packaging remains intentionally out of scope for this code audit.
 
 ## Validation Performed
 1. Full pipeline compile check: `python3 -m compileall main.py src`
 2. Full run after refactor: `python3 main.py`
 3. Verified generated artifacts:
-   - `outputs/cv_model_summary.csv`
-   - `outputs/test_model_summary.csv`
-   - `outputs/model_selection_summary.csv`
-   - `outputs/final_model_*` reports and distributions
+   - `outputs/tables/cv_model_summary.csv`
+   - `outputs/tables/test_model_summary.csv`
+   - `outputs/tables/model_selection_summary.csv`
+   - `outputs/tables/final_model_*` reports and distributions
    - updated figures in `outputs/figures/`

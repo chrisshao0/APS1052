@@ -25,8 +25,8 @@ The repository enforces a strict holdout policy:
 - test ranking is still reported for transparency, but it does not change the chosen final model
 
 Policy implementation:
-- see `Settings.final_model_selection_policy` in [src/config.py](/Users/yufan-mac/Desktop/Assignment/APS1052/Final_Project/APS1052/src/config.py)
-- see saved report: `outputs/model_selection_summary.csv`
+- see `Settings.final_model_selection_policy` in [src/config.py](src/config.py)
+- see saved report: `outputs/tables/model_selection_summary.csv`
 
 ## Repository Structure
 ```text
@@ -35,14 +35,18 @@ APS1052/
 ├── requirements.txt
 ├── environment.yml
 ├── conda_list.txt
-├── code_audit.md
-├── requirement_checklist.md
+├── docs/
+│   ├── code_audit.md
+│   └── requirement_checklist.md
+├── notebooks/
+│   └── APS1052_option5_pipeline.ipynb
 ├── data/
 │   ├── raw/
 │   └── processed/
 ├── outputs/
+│   ├── tables/
 │   ├── figures/
-│   └── *.csv
+│   └── ...
 └── src/
     ├── config.py
     ├── data_pipeline.py
@@ -56,7 +60,7 @@ APS1052/
 ## Environment Setup
 ### Option A: pip
 ```bash
-cd /Users/yufan-mac/Desktop/Assignment/APS1052/Final_Project/APS1052
+cd APS1052
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install --upgrade pip
@@ -65,7 +69,7 @@ python3 -m pip install -r requirements.txt
 
 ### Option B: conda
 ```bash
-cd /Users/yufan-mac/Desktop/Assignment/APS1052/Final_Project/APS1052
+cd APS1052
 conda env create -f environment.yml
 conda activate aps1052-option5
 ```
@@ -73,7 +77,7 @@ conda activate aps1052-option5
 ## How to Run
 ### Standard run
 ```bash
-cd /Users/yufan-mac/Desktop/Assignment/APS1052/Final_Project/APS1052
+cd APS1052
 python3 main.py
 ```
 
@@ -87,8 +91,13 @@ python3 main.py --offline
 python3 main.py --skip-shap
 ```
 
+### Run from notebook
+Open:
+- `notebooks/APS1052_option5_pipeline.ipynb`
+Then set `RUN_PIPELINE=True` in the notebook and run all cells for a full native end-to-end execution.
+
 ## Expected Outputs
-Main CSV outputs in `outputs/`:
+Main CSV outputs in `outputs/tables/`:
 - `cv_model_summary.csv`
 - `test_model_summary.csv`
 - `model_selection_summary.csv`
@@ -127,4 +136,4 @@ Figures in `outputs/figures/`:
 - external APIs (Yahoo/Binance/Fear&Greed) can change schema or availability
 - statistical significance checks depend on sample period and chosen thresholds
 - SHAP for non-tree/non-linear models may be slower (KernelExplainer path)
-- this repo currently focuses on code deliverables only (no slide deck or notebook packaging here yet)
+- notebook and script follow the same modeling policy; maintain both paths in sync if one is changed
