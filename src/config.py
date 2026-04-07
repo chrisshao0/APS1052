@@ -24,6 +24,7 @@ class Settings:
     risk_free_rate_annual: float = 0.02
 
     price_feature_lag_days: int = 0
+    # Assumes end-of-day decision timing; set to 1 for a stricter external-data availability assumption.
     external_feature_lag_days: int = 0
     onchain_feature_lag_days: int = 1
 

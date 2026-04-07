@@ -24,6 +24,9 @@ Audited areas:
 | Medium | Output hygiene | Output names were ambiguous (`best_model_*`, mixed naming). | Standardized to explicit names (`final_model_*`, `test_model_*`, `cv_model_*`); removed deprecated files automatically. | Fixed |
 | Medium | Evaluation clarity | Metrics did not expose activity level; zero-trade models could look misleading. | Added `trade_count` metric in evaluation summary. | Fixed |
 | Medium | Threshold fairness | Fixed thresholds could suppress low-variance score models (SVM/LR) and bias comparison. | Switched to model-specific CV quantile thresholds (`q75/q25`) with safety floor on threshold gap. | Fixed |
+| High | Determinism/reproducibility | `mutual_info_classif` feature scoring is stochastic if unseeded, which can change selected features and final model ranking between runs. | Seeded feature scoring via `mutual_info_classif(..., random_state=settings.random_state)` in all candidate pipelines. | Fixed |
+| High | Output integrity (SHAP) | `--skip-shap` could leave stale SHAP files from earlier runs, causing mismatched evidence versus current selected model/features. | Added explicit SHAP artifact cleanup whenever SHAP is disabled, unavailable, or fails during export. | Fixed |
+| Medium | Notebook reproducibility | Notebook execution path lacked pinned runtime tooling in environment specs. | Added pinned `jupyter`, `ipykernel`, and `nbconvert` to `requirements.txt` and `environment.yml`; regenerated `conda_list.txt`. | Fixed |
 | Medium | Risk-free consistency | Sharpe calculations differed between evaluation modules. | Centralized risk-free handling via config and routed it through CV/test and final finance outputs. | Fixed |
 | Medium | Feature timing policy | A universal lag can discard recent price information. | Replaced global lag with group-wise lag policy (price 0, external 0, on-chain 1). | Fixed |
 | Medium | Statistical interval robustness | Bootstrap quantiles could return NaN when `inf` values appeared in metric samples. | Cleaned `inf/-inf` before confidence interval quantile computation. | Fixed |
@@ -44,7 +47,11 @@ Audited areas:
 3. Notebook JSON/code integrity checks:
    - `python3 -m json.tool notebooks/APS1052_option5_pipeline.ipynb`
    - compiled all notebook code cells successfully
-4. Verified generated artifacts:
+   - headless execution succeeded in clean venv: `python -m nbconvert --to notebook --execute notebooks/APS1052_option5_pipeline.ipynb`
+4. Determinism and output integrity checks:
+   - ran `python3 main.py --offline --skip-shap` twice and confirmed identical hashes for key summaries
+   - verified SHAP files are removed when `--skip-shap` is used and recreated when SHAP is enabled
+5. Verified generated artifacts:
    - `outputs/tables/cv_model_summary.csv`
    - `outputs/tables/test_model_summary.csv`
    - `outputs/tables/model_selection_summary.csv`

@@ -128,6 +128,15 @@ def remove_deprecated_outputs(settings: Settings) -> None:
             file_path.unlink()
 
 
+def _clear_shap_outputs(settings: Settings) -> None:
+    shap_table_path = settings.output_dir / OUTPUT_FILES["final_model_shap_importance"]
+    shap_figure_path = settings.figure_dir / FIGURE_FILES["final_model_shap_summary"]
+
+    for file_path in [shap_table_path, shap_figure_path]:
+        if file_path.exists():
+            file_path.unlink()
+
+
 def _save_shap_outputs(
     fitted_pipeline,
     train_features: pd.DataFrame,
@@ -136,17 +145,20 @@ def _save_shap_outputs(
     settings: Settings,
 ) -> bool:
     if not settings.enable_shap:
+        _clear_shap_outputs(settings)
         print("SHAP export is disabled by configuration.")
         return False
 
     try:
         import shap
     except ImportError:
+        _clear_shap_outputs(settings)
         print("SHAP is not installed. Skipping SHAP exports.")
         return False
 
     chosen_feature_names = selected_feature_names(fitted_pipeline, feature_names)
     if not chosen_feature_names:
+        _clear_shap_outputs(settings)
         print("No selected features available for SHAP. Skipping SHAP exports.")
         return False
 
@@ -165,67 +177,73 @@ def _save_shap_outputs(
     )
 
     if transformed_train.empty or transformed_test.empty:
+        _clear_shap_outputs(settings)
         print("Transformed train/test data is empty. Skipping SHAP exports.")
         return False
 
-    model_only = fitted_pipeline.named_steps["model"]
+    try:
+        model_only = fitted_pipeline.named_steps["model"]
 
-    train_sample = transformed_train.sample(
-        n=min(settings.shap_sample_size, len(transformed_train)),
-        random_state=settings.random_state,
-    )
-    test_sample = transformed_test.sample(
-        n=min(settings.shap_sample_size, len(transformed_test)),
-        random_state=settings.random_state,
-    )
+        train_sample = transformed_train.sample(
+            n=min(settings.shap_sample_size, len(transformed_train)),
+            random_state=settings.random_state,
+        )
+        test_sample = transformed_test.sample(
+            n=min(settings.shap_sample_size, len(transformed_test)),
+            random_state=settings.random_state,
+        )
 
-    if model_only.__class__.__name__ in {"XGBClassifier", "RandomForestClassifier"}:
-        explainer = shap.TreeExplainer(model_only)
-        shap_values = explainer.shap_values(test_sample)
-    elif model_only.__class__.__name__ == "LogisticRegression":
-        explainer = shap.LinearExplainer(model_only, train_sample)
-        shap_values = explainer.shap_values(test_sample)
-    else:
+        if model_only.__class__.__name__ in {"XGBClassifier", "RandomForestClassifier"}:
+            explainer = shap.TreeExplainer(model_only)
+            shap_values = explainer.shap_values(test_sample)
+        elif model_only.__class__.__name__ == "LogisticRegression":
+            explainer = shap.LinearExplainer(model_only, train_sample)
+            shap_values = explainer.shap_values(test_sample)
+        else:
 
-        def score_function(values):
-            values = pd.DataFrame(values, columns=chosen_feature_names)
-            return model_only.predict_proba(values)[:, 1]
+            def score_function(values):
+                values = pd.DataFrame(values, columns=chosen_feature_names)
+                return model_only.predict_proba(values)[:, 1]
 
-        explainer = shap.KernelExplainer(score_function, train_sample)
-        shap_values = explainer.shap_values(test_sample, nsamples=200)
+            explainer = shap.KernelExplainer(score_function, train_sample)
+            shap_values = explainer.shap_values(test_sample, nsamples=200)
 
-    if isinstance(shap_values, list):
-        shap_values = shap_values[-1]
+        if isinstance(shap_values, list):
+            shap_values = shap_values[-1]
 
-    if hasattr(shap_values, "values"):
-        shap_values_array = shap_values.values
-    else:
-        shap_values_array = shap_values
+        if hasattr(shap_values, "values"):
+            shap_values_array = shap_values.values
+        else:
+            shap_values_array = shap_values
 
-    if isinstance(shap_values_array, np.ndarray) and shap_values_array.ndim == 3:
-        shap_values_array = shap_values_array[:, :, -1]
+        if isinstance(shap_values_array, np.ndarray) and shap_values_array.ndim == 3:
+            shap_values_array = shap_values_array[:, :, -1]
 
-    absolute_importance = pd.DataFrame(
-        {
-            "feature": chosen_feature_names,
-            "mean_abs_shap": np.abs(shap_values_array).mean(axis=0),
-        }
-    ).sort_values("mean_abs_shap", ascending=False)
+        absolute_importance = pd.DataFrame(
+            {
+                "feature": chosen_feature_names,
+                "mean_abs_shap": np.abs(shap_values_array).mean(axis=0),
+            }
+        ).sort_values("mean_abs_shap", ascending=False)
 
-    absolute_importance.to_csv(
-        settings.output_dir / OUTPUT_FILES["final_model_shap_importance"],
-        index=False,
-    )
+        absolute_importance.to_csv(
+            settings.output_dir / OUTPUT_FILES["final_model_shap_importance"],
+            index=False,
+        )
 
-    plt.figure()
-    shap.summary_plot(shap_values_array, test_sample, show=False)
-    plt.tight_layout()
-    plt.savefig(
-        settings.figure_dir / FIGURE_FILES["final_model_shap_summary"],
-        dpi=200,
-        bbox_inches="tight",
-    )
-    plt.close()
+        plt.figure()
+        shap.summary_plot(shap_values_array, test_sample, show=False)
+        plt.tight_layout()
+        plt.savefig(
+            settings.figure_dir / FIGURE_FILES["final_model_shap_summary"],
+            dpi=200,
+            bbox_inches="tight",
+        )
+        plt.close()
+    except Exception as error:
+        _clear_shap_outputs(settings)
+        print(f"SHAP export failed. Skipping SHAP outputs. Reason: {error}")
+        return False
 
     return True
 

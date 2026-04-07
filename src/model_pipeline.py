@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from functools import partial
+
 import pandas as pd
 from sklearn.base import clone
 from sklearn.ensemble import RandomForestClassifier
@@ -19,6 +21,7 @@ from src.evaluation import choose_signal_thresholds, evaluate_predictions, get_p
 def build_candidate_models(settings: Settings):
     """Define candidate model pipelines and search spaces."""
     seed = settings.random_state
+    deterministic_mutual_info = partial(mutual_info_classif, random_state=seed)
 
     models = {
         "logistic_regression": (
@@ -26,7 +29,7 @@ def build_candidate_models(settings: Settings):
                 steps=[
                     ("imputer", SimpleImputer(strategy="median")),
                     ("scaler", StandardScaler()),
-                    ("selector", SelectKBest(score_func=mutual_info_classif, k=12)),
+                    ("selector", SelectKBest(score_func=deterministic_mutual_info, k=12)),
                     (
                         "model",
                         LogisticRegression(
@@ -47,7 +50,7 @@ def build_candidate_models(settings: Settings):
                 steps=[
                     ("imputer", SimpleImputer(strategy="median")),
                     ("scaler", StandardScaler()),
-                    ("selector", SelectKBest(score_func=mutual_info_classif, k=12)),
+                    ("selector", SelectKBest(score_func=deterministic_mutual_info, k=12)),
                     (
                         "model",
                         SVC(
@@ -70,7 +73,7 @@ def build_candidate_models(settings: Settings):
             Pipeline(
                 steps=[
                     ("imputer", SimpleImputer(strategy="median")),
-                    ("selector", SelectKBest(score_func=mutual_info_classif, k=12)),
+                    ("selector", SelectKBest(score_func=deterministic_mutual_info, k=12)),
                     (
                         "model",
                         RandomForestClassifier(
@@ -93,7 +96,7 @@ def build_candidate_models(settings: Settings):
             Pipeline(
                 steps=[
                     ("imputer", SimpleImputer(strategy="median")),
-                    ("selector", SelectKBest(score_func=mutual_info_classif, k=12)),
+                    ("selector", SelectKBest(score_func=deterministic_mutual_info, k=12)),
                     (
                         "model",
                         XGBClassifier(

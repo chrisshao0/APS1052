@@ -66,9 +66,10 @@ source .venv/bin/activate
 python3 -m pip install --upgrade pip
 python3 -m pip install -r requirements.txt
 ```
-Optional notebook tooling:
+Notebook tooling (`jupyter`, `ipykernel`, `nbconvert`) is included in `requirements.txt`.
+If your environment was created before this update, install:
 ```bash
-python3 -m pip install jupyter ipykernel
+python3 -m pip install -U jupyter ipykernel nbconvert
 ```
 
 ### Option B: conda
@@ -77,9 +78,10 @@ cd APS1052
 conda env create -f environment.yml
 conda activate aps1052-option5
 ```
-Optional notebook tooling:
+Notebook tooling is included in `environment.yml`.
+If your conda environment was created before this update, install:
 ```bash
-conda install -c conda-forge jupyter ipykernel
+conda install -c conda-forge jupyter ipykernel nbconvert
 ```
 
 ## How to Run
@@ -145,9 +147,10 @@ Figures in `outputs/figures/`:
 - dependencies are pinned in `requirements.txt`
 - conda-compatible specification provided in `environment.yml`
 - submission-ready dependency snapshot provided in `conda_list.txt`
-- model selection is deterministic under `random_state=42` in configuration
+- model selection is deterministic under `random_state=42` in configuration, including seeded `mutual_info_classif` feature selection
 - sharpe calculations use a centralized risk-free rate in config (`risk_free_rate_annual=0.02`)
 - lag policy is explicit by feature group (price: 0-day lag, external: 0-day lag, on-chain: 1-day lag)
+- external 0-day lag assumes end-of-day signal generation after external-market features are known; set `external_feature_lag_days=1` for a stricter assumption
 - data files are cached under `data/raw/`; `--offline` ensures no network access
 
 ## Known Limitations

@@ -1,11 +1,11 @@
 selected_feature
 btc_return_1d
 btc_rsi_14
-funding_rate_daily
-funding_rate_mean_7d
+fear_greed_change_1d
+spx_return_5d
+vix_change_1d
 vix_zscore_21d
 gold_return_5d
-active_addresses_zscore_30d
 hash_rate_change_7d
 mvrv_level
 onchain_roi_30d
