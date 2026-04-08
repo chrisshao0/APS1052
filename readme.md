@@ -1,113 +1,160 @@
-# APS1052 Course Project  
-**Topic 5: Predict Bitcoin Using On-Chain Specialized Indicators**
+# APS1052 Final Project (Option 5)
+Bitcoin Direction Prediction with On-Chain and External Features
 
-## Overview
-This project builds a machine learning pipeline to predict the next-day direction of **Bitcoin** using a mix of:
+## Project Overview
+This repository contains the code pipeline for APS1052 Option 5:
+- target: next-day BTC return direction (`target = 1` if next-day return > 0, else `0`)
+- frequency: daily
+- data sources: CoinMetrics on-chain fields + Fear & Greed + Binance funding + Yahoo macro/market series
+- models: Logistic Regression, SVM, Random Forest, XGBoost
 
-- **On-chain indicators**
-- **Market and macro features**
-- **Sentiment and derivatives features**
+The pipeline covers:
+- feature engineering and lagging
+- feature selection (`SelectKBest`)
+- model tuning with time-series CV
+- trading strategy evaluation (train CV and test holdout)
+- anti-data-snooping checks (White Reality Check, permutation test, bootstrap intervals)
+- SHAP feature importance for the final selected model
 
-The goal is to test whether blockchain-specific signals can improve short-horizon Bitcoin prediction, and then evaluate whether the resulting strategy has useful trading performance.
+## Final Model Selection Policy
+The repository enforces a strict holdout policy:
+- the **final model is selected from cross-validation only**
+- only CV-active strategies are eligible for final selection (`trade_count >= 20` and `average_absolute_position >= 0.02`)
+- signal thresholds are model-specific and derived from CV score quantiles (`q75` long / `q25` short)
+- the test set is used **only** for final out-of-sample evaluation
+- test ranking is still reported for transparency, but it does not change the chosen final model
 
-## Features Used
-The project combines multiple data sources:
+Policy implementation:
+- see `Settings.final_model_selection_policy` in [src/config.py](src/config.py)
+- see saved report: `outputs/tables/model_selection_summary.csv`
 
-### On-chain data
-From **Coin Metrics** daily Bitcoin data:
-- Active addresses
-- Transaction count
-- Hash rate
-- MVRV
-- NVT-related ratios
-- Fees
-- Market cap and realized cap based ratios
-- ROI and volatility style on-chain fields
-
-### Market and external data
-- **Fear and Greed Index**
-- **Binance BTCUSDT funding rate**
-- **S&P 500**
-- **VIX**
-- **Gold**
-- **US Dollar Index** or a proxy from Yahoo Finance
-
-### Technical features
-Examples include:
-- Daily and rolling returns
-- Rolling volatility
-- Moving average gaps
-- Rolling z-scores
-- RSI
-- Drawdown and momentum style features
-
-## Model Pipeline
-The project compares several models:
-
-- Logistic Regression
-- Support Vector Machine
-- Random Forest
-- XGBoost
-
-The workflow includes:
-- Data collection and merging
-- Feature engineering
-- Train and test split
-- Time-series cross-validation
-- Randomized hyperparameter search
-- Feature selection with `SelectKBest`
-- Final out-of-sample evaluation
-
-## Evaluation
-The project evaluates both prediction quality and trading performance.
-
-### Classification metrics
-- Accuracy
-- Balanced Accuracy
-- F1 Score
-- ROC AUC
-
-### Trading metrics
-- Sharpe Ratio
-- CAGR
-- Profit Factor
-- Max Drawdown
-
-### Extra financial analysis
-The project also includes:
-- Annualized return
-- Annualized volatility
-- Sortino Ratio
-- Calmar Ratio
-- Value at Risk
-- Conditional Value at Risk
-- Beta to benchmark
-- Alpha to benchmark
-- Covariance and correlation with Bitcoin benchmark returns
-
-### Statistical checks
-- White reality check
-- Permutation test
-- Bootstrap confidence intervals
-
-## Project Structure
+## Repository Structure
 ```text
 APS1052/
 ├── main.py
 ├── requirements.txt
-├── README.md
+├── environment.yml
+├── conda_list.txt
+├── docs/
+│   ├── code_audit.md
+│   └── requirement_checklist.md
+├── notebooks/
+│   └── APS1052_option5_pipeline.ipynb
 ├── data/
 │   ├── raw/
 │   └── processed/
 ├── outputs/
+│   ├── tables/
 │   ├── figures/
-│   └── *.csv
+│   └── ...
 └── src/
-    ├── __init__.py
     ├── config.py
     ├── data_pipeline.py
     ├── feature_engineering.py
-    ├── evaluation.py
     ├── model_pipeline.py
-    ├── plots.py
-    └── finance_analysis.py
+    ├── evaluation.py
+    ├── finance_analysis.py
+    └── plots.py
+```
+
+## Environment Setup
+### Option A: pip
+```bash
+cd APS1052
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install -r requirements.txt
+```
+Notebook tooling (`jupyter`, `ipykernel`, `nbconvert`) is included in `requirements.txt`.
+If your environment was created before this update, install:
+```bash
+python3 -m pip install -U jupyter ipykernel nbconvert
+```
+
+### Option B: conda
+```bash
+cd APS1052
+conda env create -f environment.yml
+conda activate aps1052-option5
+```
+Notebook tooling is included in `environment.yml`.
+If your conda environment was created before this update, install:
+```bash
+conda install -c conda-forge jupyter ipykernel nbconvert
+```
+
+## How to Run
+Primary entrypoint (report/native execution): `notebooks/APS1052_option5_pipeline.ipynb`  
+Secondary entrypoint (script): `main.py`
+
+### Standard run
+```bash
+cd APS1052
+python3 main.py
+```
+
+### Offline run (no downloads, use cached files only)
+```bash
+python3 main.py --offline
+```
+
+### Skip SHAP exports
+```bash
+python3 main.py --skip-shap
+```
+
+### Run from notebook
+Open:
+- `notebooks/APS1052_option5_pipeline.ipynb`
+Then set `RUN_PIPELINE=True` in the notebook and run all cells for a full native end-to-end execution.
+
+### TA/Prof quick verification (recommended)
+```bash
+cd APS1052
+python3 main.py --offline --skip-shap
+```
+This regenerates all required tables/figures without network downloads.
+
+## Expected Outputs
+Main CSV outputs in `outputs/tables/`:
+- `cv_model_summary.csv`
+- `test_model_summary.csv`
+- `model_selection_summary.csv`
+- `final_model_test_metrics.csv`
+- `final_model_test_predictions.csv`
+- `final_model_finance_report.csv`
+- `final_model_statistical_checks.csv`
+- `final_model_selected_features.csv`
+- `final_model_shap_feature_importance.csv` (if SHAP enabled)
+- distribution files:
+  - `test_white_reality_bootstrap_distribution.csv`
+  - `final_model_permutation_distribution.csv`
+  - `final_model_bootstrap_sharpe_distribution.csv`
+  - `final_model_bootstrap_cagr_distribution.csv`
+  - `final_model_bootstrap_profit_factor_distribution.csv`
+
+Figures in `outputs/figures/`:
+- `final_model_test_equity_curve.png`
+- `test_model_equity_curves.png`
+- `final_model_score_vs_price.png`
+- `test_white_reality_distribution.png`
+- `final_model_permutation_distribution.png`
+- `final_model_rolling_sharpe_30d.png`
+- `final_model_shap_summary.png` (if SHAP enabled)
+
+## Reproducibility Notes
+- dependencies are pinned in `requirements.txt`
+- conda-compatible specification provided in `environment.yml`
+- submission-ready dependency snapshot provided in `conda_list.txt`
+- model selection is deterministic under `random_state=42` in configuration, including seeded `mutual_info_classif` feature selection
+- sharpe calculations use a centralized risk-free rate in config (`risk_free_rate_annual=0.02`)
+- lag policy is explicit by feature group (price: 0-day lag, external: 0-day lag, on-chain: 1-day lag)
+- external 0-day lag assumes end-of-day signal generation after external-market features are known; set `external_feature_lag_days=1` for a stricter assumption
+- data files are cached under `data/raw/`; `--offline` ensures no network access
+
+## Known Limitations
+- external APIs (Yahoo/Binance/Fear&Greed) can change schema or availability
+- statistical significance checks depend on sample period and chosen thresholds
+- SHAP for non-tree/non-linear models may be slower (KernelExplainer path)
+- notebook and script follow the same modeling policy; maintain both paths in sync if one is changed

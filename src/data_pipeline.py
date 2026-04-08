@@ -41,9 +41,21 @@ def _request_with_retry(url: str, params: dict | None = None, timeout: int = 30,
     raise last_error
 
 
-def _read_or_download_csv(url: str, file_path: Path, timeout: int = 30, max_attempts: int = 3) -> pd.DataFrame:
+def _read_or_download_csv(
+    url: str,
+    file_path: Path,
+    allow_downloads: bool,
+    timeout: int = 30,
+    max_attempts: int = 3,
+) -> pd.DataFrame:
     if file_path.exists():
         return pd.read_csv(file_path)
+
+    if not allow_downloads:
+        raise FileNotFoundError(
+            f"Missing cached file and downloads are disabled: {file_path}. "
+            f"Enable downloads or place the file manually."
+        )
 
     response = _request_with_retry(url=url, timeout=timeout, max_attempts=max_attempts)
     file_path.write_bytes(response.content)
@@ -76,10 +88,11 @@ def _flatten_yfinance_columns(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def download_coinmetrics_btc(settings: Settings) -> pd.DataFrame:
+    """Load CoinMetrics BTC data from cache or download if allowed."""
     url = "https://raw.githubusercontent.com/coinmetrics/data/master/csv/btc.csv"
     file_path = settings.data_raw_dir / "coinmetrics_btc.csv"
 
-    frame = _read_or_download_csv(url, file_path)
+    frame = _read_or_download_csv(url, file_path, allow_downloads=settings.allow_data_downloads)
     frame = _normalize_date_column(frame, "time")
     frame = frame.rename(columns={"time": "date", "PriceUSD": "btc_close"})
     frame = frame.sort_values("date").drop_duplicates("date", keep="last").reset_index(drop=True)
@@ -88,12 +101,19 @@ def download_coinmetrics_btc(settings: Settings) -> pd.DataFrame:
 
 
 def download_fear_greed(settings: Settings) -> pd.DataFrame:
+    """Load Fear and Greed index from cache or download if allowed."""
     file_path = settings.data_raw_dir / "fear_greed_daily.csv"
 
     if file_path.exists():
         frame = pd.read_csv(file_path)
         frame = _normalize_date_column(frame, "date")
         return frame
+
+    if not settings.allow_data_downloads:
+        raise FileNotFoundError(
+            f"Missing cached file and downloads are disabled: {file_path}. "
+            "Enable downloads or place the file manually."
+        )
 
     url = "https://api.alternative.me/fng/?limit=0&format=json"
     response = _request_with_retry(url=url, timeout=30, max_attempts=3)
@@ -111,12 +131,19 @@ def download_fear_greed(settings: Settings) -> pd.DataFrame:
 
 
 def download_binance_funding(settings: Settings) -> pd.DataFrame:
+    """Load Binance funding rate data from cache or download if allowed."""
     file_path = settings.data_raw_dir / "binance_btcusdt_funding_daily.csv"
 
     if file_path.exists():
         frame = pd.read_csv(file_path)
         frame = _normalize_date_column(frame, "date")
         return frame
+
+    if not settings.allow_data_downloads:
+        raise FileNotFoundError(
+            f"Missing cached file and downloads are disabled: {file_path}. "
+            "Enable downloads or place the file manually."
+        )
 
     endpoint = "https://fapi.binance.com/fapi/v1/fundingRate"
     symbol = "BTCUSDT"
@@ -166,12 +193,19 @@ def download_binance_funding(settings: Settings) -> pd.DataFrame:
 
 
 def download_yahoo_close(settings: Settings, ticker: str, file_name: str, column_name: str) -> pd.DataFrame:
+    """Load daily close series from cache or Yahoo Finance."""
     file_path = settings.data_raw_dir / file_name
 
     if file_path.exists():
         frame = pd.read_csv(file_path)
         frame = _normalize_date_column(frame, "date")
         return frame
+
+    if not settings.allow_data_downloads:
+        raise FileNotFoundError(
+            f"Missing cached file and downloads are disabled: {file_path}. "
+            "Enable downloads or place the file manually."
+        )
 
     frame = yf.download(
         ticker,
@@ -228,6 +262,7 @@ def download_us_dollar_index(settings: Settings) -> pd.DataFrame:
 
 
 def build_master_dataset(settings: Settings) -> pd.DataFrame:
+    """Build the merged feature source table with a normalized daily date index."""
     settings.make_directories()
 
     coinmetrics = download_coinmetrics_btc(settings)

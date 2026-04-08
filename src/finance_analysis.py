@@ -134,8 +134,17 @@ def covariance_and_correlation(strategy_returns: pd.Series, benchmark_returns: p
     if len(joined) < 2:
         return np.nan, np.nan
 
-    covariance = joined.iloc[:, 0].cov(joined.iloc[:, 1])
-    correlation = joined.iloc[:, 0].corr(joined.iloc[:, 1])
+    strategy = joined.iloc[:, 0]
+    benchmark = joined.iloc[:, 1]
+    covariance = strategy.cov(benchmark)
+
+    strategy_std = strategy.std(ddof=0)
+    benchmark_std = benchmark.std(ddof=0)
+    if strategy_std == 0 or benchmark_std == 0:
+        correlation = np.nan
+    else:
+        correlation = strategy.corr(benchmark)
+
     return covariance, correlation
 
 

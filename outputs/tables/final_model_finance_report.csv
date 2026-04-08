@@ -1,0 +1,13 @@
+metric,value
+annualized_return,0.2567750890799052
+annualized_volatility,0.2819334569317719
+sharpe_ratio,0.8813290614239052
+sortino_ratio,1.38031754895778
+calmar_ratio,0.9606367973338606
+max_drawdown,-0.2672967450263779
+value_at_risk_5pct,-0.0146500618219631
+conditional_value_at_risk_5pct,-0.03312124817782681
+beta_to_benchmark,0.14432630464419682
+alpha_to_benchmark,0.27445711926841715
+covariance_with_benchmark,8.088296487377548e-05
+correlation_with_benchmark,0.231283377832139

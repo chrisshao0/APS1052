@@ -5,14 +5,22 @@ import pandas as pd
 from sklearn.metrics import accuracy_score, balanced_accuracy_score, f1_score, roc_auc_score
 
 
-def annualized_sharpe(returns: pd.Series, periods_per_year: int = 365) -> float:
+def annualized_sharpe(
+    returns: pd.Series,
+    periods_per_year: int = 365,
+    risk_free_rate_annual: float = 0.0,
+) -> float:
     series = pd.Series(returns).dropna()
     if len(series) < 2:
         return np.nan
-    standard_deviation = series.std(ddof=0)
+
+    daily_risk_free = (1 + risk_free_rate_annual) ** (1 / periods_per_year) - 1
+    excess_returns = series - daily_risk_free
+    standard_deviation = excess_returns.std(ddof=0)
     if standard_deviation == 0:
         return np.nan
-    return np.sqrt(periods_per_year) * series.mean() / standard_deviation
+
+    return np.sqrt(periods_per_year) * excess_returns.mean() / standard_deviation
 
 
 def compound_annual_growth_rate(returns: pd.Series, periods_per_year: int = 365) -> float:
@@ -67,13 +75,50 @@ def get_probability_like_scores(fitted_pipeline, features: pd.DataFrame) -> np.n
     return fitted_pipeline.predict(features).astype(float)
 
 
+def choose_signal_thresholds(
+    scores: np.ndarray,
+    threshold_policy: str,
+    fixed_upper_threshold: float,
+    fixed_lower_threshold: float,
+    quantile_upper: float,
+    quantile_lower: float,
+    minimum_threshold_gap: float,
+) -> tuple[float, float]:
+    """Choose long/short signal thresholds from either fixed values or score quantiles."""
+    scores = np.asarray(scores, dtype=float)
+
+    if threshold_policy == "fixed":
+        upper_threshold = float(fixed_upper_threshold)
+        lower_threshold = float(fixed_lower_threshold)
+    elif threshold_policy == "quantile":
+        upper_threshold = float(np.nanquantile(scores, quantile_upper))
+        lower_threshold = float(np.nanquantile(scores, quantile_lower))
+    else:
+        raise ValueError(f"Unsupported threshold policy: {threshold_policy}")
+
+    if not np.isfinite(upper_threshold) or not np.isfinite(lower_threshold):
+        return float(fixed_upper_threshold), float(fixed_lower_threshold)
+
+    if upper_threshold - lower_threshold < minimum_threshold_gap:
+        center = float(np.nanmedian(scores))
+        half_gap = max(minimum_threshold_gap / 2, 0.01)
+        upper_threshold = min(1.0, center + half_gap)
+        lower_threshold = max(0.0, center - half_gap)
+
+    if upper_threshold <= lower_threshold:
+        upper_threshold = float(fixed_upper_threshold)
+        lower_threshold = float(fixed_lower_threshold)
+
+    return upper_threshold, lower_threshold
+
+
 def scores_to_positions(
     scores: np.ndarray,
     upper_threshold: float,
     lower_threshold: float,
 ) -> np.ndarray:
-    positions = np.where(scores > upper_threshold, 1,
-                np.where(scores < lower_threshold, -1, 0))
+    scores = np.asarray(scores, dtype=float)
+    positions = np.zeros_like(scores, dtype=float)
     positions[scores >= upper_threshold] = 1.0
     positions[scores <= lower_threshold] = -1.0
     return positions
@@ -85,24 +130,34 @@ def evaluate_predictions(
     future_returns: pd.Series,
     upper_threshold: float,
     lower_threshold: float,
+    risk_free_rate_annual: float = 0.0,
 ):
+    if not (len(truth) == len(scores) == len(future_returns)):
+        raise ValueError("truth, scores, and future_returns must have the same length.")
+
     binary_prediction = (scores >= 0.50).astype(int)
     positions = scores_to_positions(scores, upper_threshold, lower_threshold)
-    strategy_returns = positions * np.asarray(future_returns)
+    strategy_returns = pd.Series(
+        positions * np.asarray(future_returns),
+        index=future_returns.index,
+        name="strategy_return",
+    )
+
+    trade_count = int(np.count_nonzero(positions))
 
     metrics = {
         "accuracy": accuracy_score(truth, binary_prediction),
         "balanced_accuracy": balanced_accuracy_score(truth, binary_prediction),
-        "f1": f1_score(truth, binary_prediction),
+        "f1": f1_score(truth, binary_prediction, zero_division=0),
         "roc_auc": roc_auc_score(truth, scores) if len(np.unique(truth)) > 1 else np.nan,
-        "sharpe": annualized_sharpe(strategy_returns),
+        "sharpe": annualized_sharpe(strategy_returns, risk_free_rate_annual=risk_free_rate_annual),
         "cagr": compound_annual_growth_rate(strategy_returns),
         "profit_factor": profit_factor(strategy_returns),
         "max_drawdown": max_drawdown(strategy_returns),
         "average_absolute_position": float(np.mean(np.abs(positions))),
+        "trade_count": trade_count,
     }
 
-    strategy_returns = pd.Series(strategy_returns, index=future_returns.index, name="strategy_return")
     positions = pd.Series(positions, index=future_returns.index, name="position")
 
     return metrics, strategy_returns, positions
@@ -129,6 +184,7 @@ def white_reality_check(
     block_length: int,
     random_state: int,
 ):
+    """Compute White's reality check p-value across candidate strategy returns."""
     clean_frame = returns_frame.dropna().copy()
     observed_best_mean = clean_frame.mean().max()
 
@@ -152,21 +208,36 @@ def permutation_test(
     asset_returns: pd.Series,
     repetitions: int,
     random_state: int,
+    risk_free_rate_annual: float = 0.0,
 ):
+    """Run a permutation test for strategy Sharpe under the null of no timing edge."""
     positions_array = pd.Series(positions).dropna().to_numpy()
     returns_array = pd.Series(asset_returns).dropna().to_numpy()
 
     observed_returns = positions_array * returns_array
-    observed_sharpe = annualized_sharpe(observed_returns)
+    observed_sharpe = annualized_sharpe(
+        observed_returns,
+        risk_free_rate_annual=risk_free_rate_annual,
+    )
 
     generator = np.random.default_rng(random_state)
     simulated_sharpes = []
 
     for _ in range(repetitions):
         shuffled_returns = generator.permutation(returns_array)
-        simulated_sharpes.append(annualized_sharpe(positions_array * shuffled_returns))
+        simulated_sharpes.append(
+            annualized_sharpe(
+                positions_array * shuffled_returns,
+                risk_free_rate_annual=risk_free_rate_annual,
+            )
+        )
 
     distribution = pd.Series(simulated_sharpes, name="permuted_sharpes")
+    distribution = distribution.replace([np.inf, -np.inf], np.nan)
+
+    if np.isnan(observed_sharpe):
+        return observed_sharpe, np.nan, distribution
+
     p_value = float(np.mean(distribution >= observed_sharpe))
 
     return observed_sharpe, p_value, distribution
@@ -178,7 +249,9 @@ def bootstrap_confidence_interval(
     repetitions: int,
     block_length: int,
     random_state: int,
+    risk_free_rate_annual: float = 0.0,
 ):
+    """Compute block-bootstrap confidence intervals for a selected metric."""
     clean_returns = pd.Series(returns).dropna()
     generator = np.random.default_rng(random_state)
     samples = []
@@ -188,7 +261,7 @@ def bootstrap_confidence_interval(
         sampled = clean_returns.iloc[sample_index]
 
         if metric_name == "sharpe":
-            samples.append(annualized_sharpe(sampled))
+            samples.append(annualized_sharpe(sampled, risk_free_rate_annual=risk_free_rate_annual))
         elif metric_name == "cagr":
             samples.append(compound_annual_growth_rate(sampled))
         elif metric_name == "profit_factor":
@@ -196,8 +269,15 @@ def bootstrap_confidence_interval(
         else:
             raise ValueError(f"Unsupported metric: {metric_name}")
 
-    distribution = pd.Series(samples, name=f"bootstrap_{metric_name}")
-    lower = distribution.quantile(0.025)
-    upper = distribution.quantile(0.975)
+    raw_distribution = pd.Series(samples, name=f"bootstrap_{metric_name}")
+    clean_distribution = raw_distribution.replace([np.inf, -np.inf], np.nan).dropna()
 
-    return (lower, upper), distribution
+    if clean_distribution.empty:
+        if metric_name == "profit_factor" and np.isposinf(raw_distribution).any():
+            return (np.inf, np.inf), raw_distribution
+        return (np.nan, np.nan), raw_distribution
+
+    lower = clean_distribution.quantile(0.025)
+    upper = clean_distribution.quantile(0.975)
+
+    return (lower, upper), raw_distribution
